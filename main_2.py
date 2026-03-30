@@ -1,17 +1,18 @@
 import torch
 import tiktoken
 
-from gptmodel import DummyGPTModel, LayerNorm
 from gelu import FeedForward, GELU
 import torch.nn as nn
-from shortcut_conn import ExampleDeepNeuralNetwork
+from shortcut_conn import ExampleDeepNeuralNetwork, print_gradients
+from gptmodel import GPTModel
+from text_encode_decode import generate_text_simple
 
 
 def main():
 
     GPT_CONFIG_124M = {
         "vocab_size": 50257,
-        "context_length": 1025,
+        "context_length": 256,
         "emb_dim": 768,
         "n_heads": 12,
         "n_layers": 12,
@@ -27,12 +28,21 @@ def main():
     txt2 = "Every days holds a"
 
 
-    # batch.append(torch.tensor(tokinizer.encode(txt1)))
-    # batch.append(torch.tensor(tokinizer.encode(txt2)))
+    batch.append(torch.tensor(tokinizer.encode(txt1)))
+    batch.append(torch.tensor(tokinizer.encode(txt2)))
 
-    # batch = torch.stack(batch, dim=0)
+    
 
-    # torch.manual_seed(123)
+    batch = torch.stack(batch, dim=0)
+
+    torch.manual_seed(123)
+
+    model = GPTModel(GPT_CONFIG_124M)
+
+
+    # print("Input batch:\n", batch)
+    # print("\nOutput shape:", out.shape)
+    # print(out)
 
     # model = DummyGPTModel(GPT_CONFIG_124M)
 
@@ -60,12 +70,50 @@ def main():
     # out = ffn(x)
 
     
-    layer_sizes = [3, 3, 3, 3, 3, 1]
-    sample_input = torch.tensor([[1., 0., -1.]])
-    torch.manual_seed(123)
-    model_without_shortcut = ExampleDeepNeuralNetwork(
-        layer_sizes, use_shortcut=False
+    # layer_sizes = [3, 3, 3, 3, 3, 1]
+    # sample_input = torch.tensor([[1., 0., -1.]])
+    # torch.manual_seed(123)
+    # model_without_shortcut = ExampleDeepNeuralNetwork(
+    #     layer_sizes, use_shortcut=False
+    # )
+
+    # torch.manual_seed(123)
+    # model_with_shortcut = ExampleDeepNeuralNetwork(
+    #     layer_sizes, use_shortcut=True
+    # )
+
+    # print_gradients(model_with_shortcut, sample_input)
+    # torch.manual_seed(123)
+    # x = torch.rand(2, 4, 768)
+    # block = TransformerBlock(GPT_CONFIG_124M)
+    # output = block(x)
+
+    # print_gradients(model_without_shortcut, sample_input)
+    # print("Input shape:", x.shape)
+    # print("Output shape:", output.shape) 
+
+    start_context = "Hello , i am"
+
+    encoded = tokinizer.encode(start_context)
+    print("encoded", encoded)
+    encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+
+    print("encoded_tensor.shape:", encoded_tensor.shape)
+
+    model.eval()
+
+    out = generate_text_simple(
+        model=model,
+        idx=encoded_tensor,
+        max_mew_token=6,
+        context_size=GPT_CONFIG_124M["context_length"]
     )
+
+    print("Output:", out)
+    print("Output length:", len(out[0]))
+
+    decode_text = tokinizer.decode(out.squeeze(0).tolist())
+    print("Decode text:", decode_text)
 
 if __name__ == "__main__":
     main()
