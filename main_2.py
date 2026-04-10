@@ -5,7 +5,7 @@ from gelu import FeedForward, GELU
 import torch.nn as nn
 from shortcut_conn import ExampleDeepNeuralNetwork, print_gradients
 from gptmodel import GPTModel
-from text_encode_decode import generate_text_simple
+from text_encode_decode import generate_text_simple, token_ids_to_text
 
 
 def main():
@@ -92,28 +92,62 @@ def main():
     # print("Input shape:", x.shape)
     # print("Output shape:", output.shape) 
 
-    start_context = "Hello , i am"
+    # start_context = "Hello , i am"
 
-    encoded = tokinizer.encode(start_context)
-    print("encoded", encoded)
-    encoded_tensor = torch.tensor(encoded).unsqueeze(0)
+    # encoded = tokinizer.encode(start_context)
+    # print("encoded", encoded)
+    # encoded_tensor = torch.tensor(encoded).unsqueeze(0)
 
-    print("encoded_tensor.shape:", encoded_tensor.shape)
+    # print("encoded_tensor.shape:", encoded_tensor.shape)
 
     model.eval()
 
-    out = generate_text_simple(
-        model=model,
-        idx=encoded_tensor,
-        max_mew_token=6,
-        context_size=GPT_CONFIG_124M["context_length"]
-    )
+    # out = generate_text_simple(
+    #     model=model,
+    #     idx=encoded_tensor,
+    #     max_mew_token=6,
+    #     context_size=GPT_CONFIG_124M["context_length"]
+    # )
 
-    print("Output:", out)
-    print("Output length:", len(out[0]))
+    # print("Output:", out)
+    # print("Output length:", len(out[0]))
 
-    decode_text = tokinizer.decode(out.squeeze(0).tolist())
-    print("Decode text:", decode_text)
+    # decode_text = tokinizer.decode(out.squeeze(0).tolist())
+    # print("Decode text:", decode_text)
+    inputs = torch.tensor([[16833, 3626, 6100],
+                           [40, 1107, 588]])
+
+    targets = torch.tensor([[3626, 6100, 345],
+                            [1107, 588, 11311]])
+    
+    with torch.no_grad():
+        logits = model(inputs)
+
+    probas = torch.softmax(logits, dim=-1)
+
+    token_ids = torch.argmax(probas, dim=-1, keepdim=True)
+    # print("Token IDs: \n, ", token_ids)
+
+    # print(f"Targets batch 1 :, {token_ids_to_text(targets[0], tokinizer)}")
+    # print(f"Outputs batch 1 :"
+    #       f"{token_ids_to_text(token_ids[0].flatten(), tokinizer)}")
+    text_idx = 0
+    target_probas_1 = probas[text_idx, [0, 1, 2], targets[text_idx]]
+
+    text_idx = 1
+    target_probas_2 = probas[text_idx, [0, 1, 2], targets[text_idx]]
+
+    log_probas = torch.log(torch.cat((target_probas_1, target_probas_2)))
+
+    avg_log_probas = torch.mean(log_probas)
+
+    neg_avg_log_probas = avg_log_probas * -1
+
+    logits_flat = logits.flatten(0, 1)
+    targets_flat = targets.flatten()
+
+    loss = torch.nn.functional.cross_entropy(logits_flat, targets_flat)
+    print(loss)
 
 if __name__ == "__main__":
     main()
